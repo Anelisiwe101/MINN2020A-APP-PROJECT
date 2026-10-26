@@ -24,6 +24,7 @@ WORKERS_FILE = "workers.csv"
 INCIDENTS_FILE = "incidents.csv"
 EQUIPMENT_FILE = "equipment.csv"
 
+
 # -----------------------------
 # SAMPLE DATA
 # -----------------------------
@@ -180,41 +181,53 @@ protection review", "Open"],
         ])
         equipment.to_csv(EQUIPMENT_FILE, index=False)
 
-# MAIN APPLICATION
+border_color=self.colors["border"],
 
-class KhweziMiningApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.geometry(f"{APP_WIDTH}x{APP_HEIGHT}")
-        self.root.minsize(1100, 700)
-        self.root.title("Khwezi Mining | Health, Safety & Equipment
-Monitoring")
+text_color=self.colors["text"])
+        self.username_entry.pack(pady=(5, 15))
 
-        self.current_user = None
-        self.current_role = None
+         # Password
+        ctk.CTkLabel(card, text="PASSWORD", font=("Arial", 10,
+"bold"),
+                      text_color=self.colors["muted"]).pack(anchor="w",
+padx=40)
+         self.password_entry = ctk.CTkEntry(card,
+placeholder_text="Enter your password", show="*",
+                                            width=340, height=42,
+corner_radius=8,
+                                            fg_color=self.colors["bg"],
+border_color=self.colors["border"],
 
-        # NEW COLOR PALETTE: Deep Forest & Copper
-        self.colors = {
-              "bg": "#0F1715",           # Deep dark green/black
-              "panel": "#1A2420",        # Slightly lighter dark green
-              "panel2": "#24332D",       # Card background
-              "accent": "#D98A44",       # Copper/Orange
-              "accent_hover": "#E89E5F",
-              "accent2": "#3B8EA5",      # Teal/Blue
-              "success": "#48A97C",      # Soft green
-              "warning": "#D98A44",      # Copper
-              "danger": "#C75B5B",       # Soft red
-              "text": "#F2F5F4",         # Off-white
-              "muted": "#8FA39C",        # Greyish-green
-              "border": "#2E4239"        # Subtle border
-          }
+text_color=self.colors["text"])
+        self.password_entry.pack(pady=(5, 25))
+        self.password_entry.bind("<Return>", lambda e: self.login())
 
-          create_sample_csv_files()
-          self.load_data()
-          self.load_users()
-          self.show_login()
+        # Login Button
+        ctk.CTkButton(card, text="LOGIN", width=340, height=45,
+corner_radius=8,
+                      fg_color=self.colors["accent"],
+text_color="#FFFFFF",
+                      font=("Arial", 14, "bold"),
+hover_color=self.colors["accent_hover"],
+                      command=self.login).pack(pady=(0, 10))
 
-             username = self.username_entry.get().strip()
+        # Register Button
+        ctk.CTkButton(card, text="Create an Account", width=340,
+height=40, corner_radius=8,
+                      fg_color="transparent", border_width=1,
+border_color=self.colors["border"],
+                      text_color=self.colors["text"],
+hover_color=self.colors["panel2"],
+                      command=self.registration).pack(pady=(0, 20))
+
+          # Footer
+          ctk.CTkLabel(card, text="v2026.1 路 MINN2020A", font=("Arial",
+10),
+
+text_color=self.colors["muted"]).pack(side="bottom", pady=15)
+
+       def login(self):
+           username = self.username_entry.get().strip()
            password = self.password_entry.get().strip()
         if username in self.users and self.users[username]["password"]
 == password:
