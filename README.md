@@ -995,3 +995,143 @@ self.incidents_df["Department"].value_counts().idxmax()
                      font=("Arial", 11),
 text_color=self.colors["text"]).pack(anchor="w", padx=15, pady=10)
         self.back_button()
+
+          # EXPORT REPORT
+    def export_report(self):
+        self.clear()
+        self.header("Generate / Export Report",
+                     "Export the current prototype monitoring datasets
+for reporting and analysis.")
+        frame = ctk.CTkFrame(self.root, fg_color=self.colors["panel"],
+corner_radius=15, border_width=1, border_color=self.colors["border"])
+        frame.pack(pady=30)
+
+        def export_all():
+            try:
+                self.workers_df.to_csv("khwezi_workers_export.csv",
+index=False)
+self.incidents_df.to_csv("khwezi_incidents_export.csv", index=False)
+
+self.equipment_df.to_csv("khwezi_equipment_export.csv", index=False)
+                messagebox.showinfo("Export Complete",
+                                    "Three CSV reports were exported
+to the application folder.")
+            except Exception as e:
+                messagebox.showerror("Export Error", str(e))
+
+        ctk.CTkLabel(frame, text="Export workers, incidents and
+equipment data",
+                     font=("Arial", 16, "bold"),
+text_color=self.colors["text"]).pack(padx=40, pady=25)
+        ctk.CTkButton(frame, text="Export CSV Reports", width=280,
+height=45, corner_radius=8,
+                      fg_color=self.colors["accent"],
+hover_color=self.colors["accent_hover"],
+                      command=export_all).pack(pady=(0, 30), padx=40)
+        self.back_button()
+
+    # USER MANAGEMENT
+    def user_management(self):
+        if self.current_role != "Administrator":
+            messagebox.showerror("Access Denied", "Administrator
+access required.")
+            return
+        self.clear()
+        self.header("User Management", "Administrator-only role-based
+access control.")
+        frame = ctk.CTkScrollableFrame(self.root,
+fg_color=self.colors["panel"], corner_radius=12, border_width=1,
+border_color=self.colors["border"])
+        frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        for username, data in sorted(self.users.items()):
+            row = ctk.CTkFrame(frame, fg_color=self.colors["panel2"],
+corner_radius=8)
+            row.pack(fill="x", padx=10, pady=5)
+            ctk.CTkLabel(row, text=username, width=200, anchor="w",
+                         font=("Arial", 13, "bold"),
+text_color=self.colors["text"]).pack(side="left", padx=15, pady=12)
+            ctk.CTkLabel(row, text=data["role"], width=250,
+                         anchor="w",
+text_color=self.colors["muted"]).pack(side="left", padx=15)
+            if username != self.current_user:
+                ctk.CTkButton(row, text="Delete", width=90, height=30,
+corner_radius=6,
+                              fg_color=self.colors["danger"],
+hover_color="#A84C4C",
+                              command=lambda u=username:
+self.delete_user(u)).pack(side="right", padx=15)
+        self.back_button()
+
+    def delete_user(self, username):
+        if messagebox.askyesno("Confirm", f"Delete user
+'{username}'?"):
+            del self.users[username]
+            self.save_users()
+            self.user_management()
+
+    # TREEVIEW
+    def make_tree(self, parent, columns, dataframe):
+        style = ttk.Style()
+        try:
+            style.theme_use("clam")
+        except Exception:
+            pass
+        style.configure("Treeview", background=self.colors["panel"],
+foreground=self.colors["text"],
+                        fieldbackground=self.colors["panel"],
+rowheight=30, font=("Arial", 10),
+                        borderwidth=0)
+        style.configure("Treeview.Heading",
+background=self.colors["panel2"],
+                        foreground=self.colors["text"], font=("Arial",
+10, "bold"), borderwidth=0)
+        style.map("Treeview", background=[('selected',
+self.colors["border"])])
+
+       container = tk.Frame(parent, bg=self.colors["panel"])
+       container.pack(fill="both", expand=True, padx=5, pady=5)
+
+        tree = ttk.Treeview(container, columns=columns,
+show="headings")
+        yscroll = ttk.Scrollbar(container, orient="vertical",
+command=tree.yview)
+        xscroll = ttk.Scrollbar(container, orient="horizontal",
+command=tree.xview)
+        tree.configure(yscrollcommand=yscroll.set,
+xscrollcommand=xscroll.set)
+        yscroll.pack(side="right", fill="y")
+        xscroll.pack(side="bottom", fill="x")
+        tree.pack(side="left", fill="both", expand=True)
+
+        for col in columns:
+            tree.heading(col, text=col)
+            tree.column(col, width=max(100, min(190, len(col) * 12)),
+anchor="center")
+        for _, row in dataframe.iterrows():
+            values = []
+            for value in row.tolist():
+                if isinstance(value, float):
+                    values.append(f"{value:.2f}")
+                else:
+                    values.append(str(value))
+            tree.insert("", "end", values=values)
+        return tree
+
+    # LOGOUT
+    def logout(self):
+        if messagebox.askyesno("Logout", "Log out of Khwezi Mining?"):
+             self.current_user = None
+             self.current_role = None
+             self.show_login()
+
+
+# RUNNING THE APP
+def run_app():
+    root = ctk.CTk()
+    KhweziMiningApp(root)
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    run_app()
