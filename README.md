@@ -280,3 +280,440 @@ border_color=self.colors["border"],
 command=self.show_login).pack(pady=(0, 20))
 
     # -------------------------        
+# DASHBOARD (Fits on One Page)
+    # -------------------------
+    def dashboard(self):
+        self.clear()
+        permissions = self.role_permissions()
+
+        # Top Bar
+        top_bar = ctk.CTkFrame(self.root,
+fg_color=self.colors["panel"], corner_radius=0, height=80)
+        top_bar.pack(fill="x")
+        top_bar.pack_propagate(False)
+
+        ctk.CTkLabel(top_bar, text="⛏ Khwezi Mining Dashboard",
+font=("Arial", 24, "bold"),
+
+text_color=self.colors["accent"]).pack(side="left", padx=25)
+
+       # User info and Logout in top bar
+       user_frame = ctk.CTkFrame(top_bar, fg_color="transparent")
+       user_frame.pack(side="right", padx=25)
+
+        ctk.CTkButton(user_frame, text="LOG OUT", width=90, height=32,
+corner_radius=6,
+                      fg_color=self.colors["danger"],
+hover_color="#A84C4C",
+                      command=self.logout).pack(side="right",
+padx=(15, 0))
+
+        ctk.CTkLabel(user_frame, text=f"{self.current_user}
+({self.current_role})",
+                     font=("Arial", 13),
+text_color=self.colors["muted"]).pack(side="right")
+
+       # KPI Cards (Single Row)
+       kpi_frame = ctk.CTkFrame(self.root, fg_color="transparent")
+       kpi_frame.pack(fill="x", padx=20, pady=(20, 10))
+        critical_equipment = len(self.equipment_df[
+            (self.equipment_df["Temperature"] > 100) |
+(self.equipment_df["Vibration"] > 8)])
+        high_critical_incidents = len(self.incidents_df[
+            self.incidents_df["Severity"].isin(["High", "Critical"])])
+        near_misses = int(self.workers_df["NearMisses"].sum())
+        avg_availability = self.equipment_df["Availability"].mean()
+        ppe = self.workers_df["PPECompliance"].mean()
+
+        cards = [
+            ("WORKERS", len(self.workers_df), self.colors["accent2"]),
+            ("INCIDENTS", len(self.incidents_df),
+self.colors["danger"]),
+            ("NEAR MISSES", near_misses, self.colors["accent"]),
+            ("EQUIPMENT", len(self.equipment_df),
+self.colors["accent2"]),
+            ("AVAILABILITY", f"{avg_availability:.1f}%",
+self.colors["success"]),
+            ("PPE COMPLIANCE", f"{ppe:.1f}%", self.colors["success"]),
+            ("HIGH/CRITICAL", high_critical_incidents,
+self.colors["danger"]),
+            ("EQ ALERTS", critical_equipment, self.colors["danger"])
+        ]
+
+        # 8 cards in a single row
+        for i, (label, value, color) in enumerate(cards):
+            card = ctk.CTkFrame(kpi_frame,
+fg_color=self.colors["panel2"], corner_radius=10, border_width=1,
+border_color=self.colors["border"])
+            card.pack(side="left", fill="both", expand=True, padx=4)
+
+           ctk.CTkLabel(card, text=label, font=("Arial", 9, "bold"),
+
+text_color=self.colors["muted"]).pack(pady=(12, 0))
+            ctk.CTkLabel(card, text=str(value), font=("Arial", 22,
+"bold"),
+                         text_color=color).pack(pady=(2, 12))
+
+        # Navigation Menu (compact 4-row x 2-column grid)
+        # Keep the menu centred and sized to its contents instead of
+stretching
+        # across the whole dashboard. Each button stays compact and
+readable.
+        nav_frame = ctk.CTkFrame(self.root, fg_color="transparent")
+        nav_frame.pack(anchor="center", padx=20, pady=(10, 6))
+
+        buttons = [
+            ("👷 Worker Health & Safety", self.worker_monitoring,
+permissions["workers"]),
+            ("⚠️ Safety Incidents", self.incident_database,
+permissions["incidents"]),
+            ("🚜 Equipment Database", self.equipment_database,
+permissions["equipment"]),
+            ("🔧 Maintenance Monitoring", self.maintenance_monitoring,
+permissions["maintenance"]),
+            ("📊 Risk Assessment", self.risk_assessment,
+permissions["risk"]),
+            ("🔔 Alerts & Notifications", self.alerts, True),
+            ("📈 Interactive Data Analysis", self.analytics, True),
+            ("📋 Generate / Export Report", self.export_report,
+permissions["reports"]),
+            ("👥 User Management", self.user_management,
+permissions["users"]),
+        ]
+
+
+        row, col = 0, 0
+        for text, command, allowed in buttons:
+            if allowed:
+                btn = ctk.CTkButton(
+                    nav_frame, text=text, command=command,
+                    width=330, height=48, corner_radius=8,
+                    fg_color=self.colors["panel2"],
+                    border_width=1,
+border_color=self.colors["border"],
+                    hover_color=self.colors["border"],
+                    text_color=self.colors["text"],
+                    font=("Arial", 12, "bold"),
+                    anchor="center"
+                )
+                btn.grid(row=row, column=col, padx=7, pady=5)
+
+               col += 1
+               if col >= 2:
+                   col = 0
+                   row += 1
+
+        # Fixed column sizing prevents the buttons from expanding to
+fill space.
+        nav_frame.grid_columnconfigure(0, weight=0)
+        nav_frame.grid_columnconfigure(1, weight=0)
+
+        # Footer
+        ctk.CTkLabel(self.root, text="Prototype educational thresholds
+only — not actual mine safety limits.",
+                     font=("Arial", 10),
+text_color=self.colors["muted"]).pack(pady=5)
+
+    # WORKER MONITORING
+    def worker_monitoring(self):
+        self.clear()
+        self.header("Worker Health & Safety Monitoring",
+                     "Worker PPE, training, fatigue, observations and
+previous incident monitoring.")
+        frame = ctk.CTkFrame(self.root, fg_color=self.colors["panel"],
+corner_radius=12, border_width=1, border_color=self.colors["border"])
+        frame.pack(fill="both", expand=True, padx=20, pady=10)
+        self.make_tree(frame, list(self.workers_df.columns),
+self.workers_df)
+
+        warning_workers = self.workers_df[
+            (self.workers_df["PPECompliance"] < 80) |
+            (self.workers_df["FatigueLevel"] >= 4) |
+            (self.workers_df["TrainingStatus"] != "Complete")]
+        ctk.CTkLabel(self.root,
+                     text=f"Warning: {len(warning_workers)} workers
+require attention.",
+                     text_color=self.colors["accent"],
+                     font=("Arial", 13, "bold")).pack(pady=5)
+        self.back_button()
+
+    # INCIDENT DATABASE
+    def incident_database(self):
+        self.clear()
+        self.header("Safety Incident Database",
+                     "Add, search, filter, categorise, count and
+analyse safety incidents.")
+
+        toolbar = ctk.CTkFrame(self.root, fg_color="transparent")
+        toolbar.pack(fill="x", padx=20, pady=(5, 2))
+
+        search_var = tk.StringVar()
+        severity = ctk.StringVar(value="All")
+        incident_type = ctk.StringVar(value="All")
+        department = ctk.StringVar(value="All")
+        status = ctk.StringVar(value="All")
+
+        ctk.CTkLabel(toolbar, text="Search:",
+text_color=self.colors["text"]).pack(side="left", padx=(0, 5))
+        search_entry = ctk.CTkEntry(toolbar, textvariable=search_var,
+placeholder_text="ID, location, cause...", width=190,
+                                     fg_color=self.colors["bg"],
+border_color=self.colors["border"])
+        search_entry.pack(side="left", padx=(0, 10))
+
+        def add_filter(label, variable, values, width=115):
+            ctk.CTkLabel(toolbar, text=label,
+text_color=self.colors["text"]).pack(side="left", padx=(4, 3))
+            combo = ctk.CTkComboBox(toolbar, values=values,
+variable=variable, width=width,
+                                      fg_color=self.colors["bg"],
+border_color=self.colors["border"],
+                                   command=lambda _: refresh())
+           combo.pack(side="left", padx=(0, 4))
+           return combo
+
+        add_filter("Severity:", severity, ["All", "Low", "Medium",
+"High", "Critical"], 100)
+        add_filter("Type:", incident_type, ["All"] +
+sorted(self.incidents_df["IncidentType"].dropna().astype(str).unique()
+.tolist()), 115)
+        add_filter("Department:", department, ["All"] +
+sorted(self.incidents_df["Department"].dropna().astype(str).unique().t
+olist()), 120)
+        add_filter("Status:", status, ["All", "Open", "Closed"], 90)
+        ctk.CTkButton(toolbar, text="Clear Filters", width=95,
+                      fg_color=self.colors["panel2"],
+hover_color=self.colors["border"],
+                      command=lambda:
+clear_filters()).pack(side="left", padx=(5, 0))
+
+        action_bar = ctk.CTkFrame(self.root, fg_color="transparent")
+        action_bar.pack(fill="x", padx=20, pady=(2, 5))
+        count_label = ctk.CTkLabel(action_bar, text="",
+text_color=self.colors["accent"],
+                                   font=("Arial", 12, "bold"))
+        count_label.pack(side="left")
+        ctk.CTkButton(action_bar, text="+ Add Incident", width=130,
+                      fg_color=self.colors["accent"],
+hover_color=self.colors["accent_hover"],
+                      command=lambda:
+add_incident()).pack(side="right", padx=(5, 0))
+        ctk.CTkButton(action_bar, text="Analyse Trends", width=130,
+                      fg_color=self.colors["accent2"],
+hover_color=self.colors["border"],
+                      command=lambda:
+analyse_trends()).pack(side="right", padx=5)
+
+        frame = ctk.CTkFrame(self.root, fg_color=self.colors["panel"],
+corner_radius=12,
+                             border_width=1,
+border_color=self.colors["border"])
+        frame.pack(fill="both", expand=True, padx=20, pady=(3, 8))
+
+       def refresh(*_):
+           for widget in frame.winfo_children():
+               widget.destroy()
+           df = self.incidents_df.copy()
+           if severity.get() != "All":
+                df = df[df["Severity"].astype(str) == severity.get()]
+            if incident_type.get() != "All":
+                df = df[df["IncidentType"].astype(str) ==
+incident_type.get()]
+            if department.get() != "All":
+                df = df[df["Department"].astype(str) ==
+department.get()]
+            if status.get() != "All":
+                df = df[df["Status"].astype(str) == status.get()]
+            query = search_var.get().strip().lower()
+            if query:
+                matches = df.astype(str).apply(lambda column:
+column.str.lower().str.contains(query, na=False,
+regex=False)).any(axis=1)
+                df = df[matches]
+            count_label.configure(text=f"Showing {len(df)} of
+{len(self.incidents_df)} incidents | Total recorded:
+{len(self.incidents_df)}")
+            self.make_tree(frame, list(df.columns), df)
+
+       def clear_filters():
+           search_var.set("")
+           severity.set("All")
+           incident_type.set("All")
+           department.set("All")
+           status.set("All")
+           refresh()
+
+       search_var.trace_add("write", refresh)
+
+        def add_incident():
+            popup = ctk.CTkToplevel(self.root)
+            popup.title("Add Safety Incident")
+            popup.geometry("650x700")
+            popup.transient(self.root)
+            popup.grab_set()
+            ctk.CTkLabel(popup, text="Add Safety Incident",
+font=("Arial", 20, "bold"),
+
+text_color=self.colors["accent"]).pack(pady=(15, 8))
+            form = ctk.CTkScrollableFrame(popup,
+fg_color=self.colors["panel"])
+            form.pack(fill="both", expand=True, padx=18, pady=8)
+
+            fields = [
+                ("Date (YYYY-MM-DD)", "Date", "2026-10-20"), ("Time
+(HH:MM)", "Time", ""),
+                ("Shift", "Shift", "Day"), ("Location", "Location",
+""),
+                ("Department", "Department", "Mining"), ("Incident
+Type", "IncidentType", "Vehicle"),
+                ("Severity", "Severity", "Medium"), ("Injury Status",
+"InjuryStatus", "No"),
+                ("Lost Time", "LostTime", "No"), ("Cause /
+Description", "Cause", ""),
+                ("Corrective Action", "CorrectiveAction", ""),
+("Status", "Status", "Open")
+            ]
+            entries = {}
+            for label, key, default in fields:
+                ctk.CTkLabel(form, text=label,
+text_color=self.colors["text"]).pack(anchor="w", padx=10, pady=(5, 0))
+                if key == "Shift":
+                    widget = ctk.CTkComboBox(form, values=["Day",
+"Night"], width=560)
+                    widget.set(default)
+                elif key == "Department":
+                    widget = ctk.CTkComboBox(form, values=["Mining",
+"Processing", "Maintenance", "Engineering", "Other"], width=560)
+                    widget.set(default)
+                elif key == "IncidentType":
+                    widget = ctk.CTkComboBox(form, values=["Vehicle",
+"Slip/Trip", "Equipment", "Electrical", "Chemical", "Fall", "Hand
+injury", "Fire", "Ground Control", "Other"], width=560)
+                    widget.set(default)
+                elif key == "Severity":
+                    widget = ctk.CTkComboBox(form, values=["Low",
+"Medium", "High", "Critical"], width=560)
+                    widget.set(default)
+                elif key in ("InjuryStatus", "LostTime"):
+                    widget = ctk.CTkComboBox(form, values=["No",
+"Yes"], width=560)
+                    widget.set(default)
+                elif key == "Status":
+                    widget = ctk.CTkComboBox(form, values=["Open",
+"Closed"], width=560)
+                    widget.set(default)
+                else:
+                    widget = ctk.CTkEntry(form, width=560,
+placeholder_text=label)
+                    if default:
+                        widget.insert(0, default)
+                widget.pack(padx=10, pady=(2, 4))
+                entries[key] = widget
+
+            def save_incident():
+                 values = {key: widget.get().strip() for key, widget in
+entries.items()}
+                 required = ["Date", "Time", "Location", "Department",
+"IncidentType", "Severity", "Cause"]
+                if any(not values[key] for key in required):
+                    messagebox.showerror("Missing Information",
+"Please complete the date, time, location, department, incident type,
+severity and cause.", parent=popup)
+                    return
+                try:
+                    pd.to_datetime(values["Date"], format="%Y-%m-%d",
+errors="raise")
+                    pd.to_datetime(values["Time"], format="%H:%M",
+errors="raise")
+                except ValueError:
+                    messagebox.showerror("Invalid Date or Time", "Use
+YYYY-MM-DD for the date and HH:MM for the time.", parent=popup)
+                    return
+                next_number = 1
+                existing_ids =
+self.incidents_df["IncidentID"].astype(str).tolist()
+                while f"I{next_number:03d}" in existing_ids:
+                    next_number += 1
+                record = {"IncidentID": f"I{next_number:03d}"}
+                record.update(values)
+                try:
+                    updated = pd.concat([self.incidents_df,
+pd.DataFrame([record], columns=self.incidents_df.columns)],
+ignore_index=True)
+                    updated.to_csv(INCIDENTS_FILE, index=False)
+                    self.incidents_df = updated
+                    popup.destroy()
+                    refresh()
+                    messagebox.showinfo("Incident Added", f"Incident
+{record['IncidentID']} was saved successfully.", parent=self.root)
+                except Exception as exc:
+                    messagebox.showerror("Save Error", f"The incident
+could not be saved: {exc}", parent=popup)
+
+            ctk.CTkButton(popup, text="Save Incident",
+command=save_incident,
+                          fg_color=self.colors["accent"],
+hover_color=self.colors["accent_hover"],
+                          width=200, height=38).pack(pady=(5, 15))
+
+        def analyse_trends():
+            if self.incidents_df.empty:
+                messagebox.showinfo("Incident Trends", "There are no
+incidents to analyse.")
+                return
+            df = self.incidents_df.copy()
+            df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+            df = df.dropna(subset=["Date"])
+            if df.empty:
+                messagebox.showinfo("Incident Trends", "No valid
+incident dates are available for trend analysis.")
+                return
+            df["Month"] = df["Date"].dt.to_period("M").astype(str)
+            monthly = df.groupby("Month").size()
+            by_type = self.incidents_df["IncidentType"].value_counts()
+            by_severity =
+self.incidents_df["Severity"].value_counts().reindex(["Low", "Medium",
+"High", "Critical"], fill_value=0)
+
+            popup = ctk.CTkToplevel(self.root)
+            popup.title("Safety Incident Trend Analysis")
+            popup.geometry("950x650")
+            popup.transient(self.root)
+            fig, axes = plt.subplots(1, 3, figsize=(12, 4.5),
+facecolor=self.colors["panel"])
+            for ax in axes:
+                ax.set_facecolor(self.colors["panel"])
+                ax.tick_params(axis="x", rotation=35,
+colors=self.colors["text"])
+                ax.tick_params(axis="y", colors=self.colors["text"])
+                ax.title.set_color(self.colors["text"])
+            monthly.plot(kind="bar", ax=axes[0],
+color=self.colors["accent"])
+            axes[0].set_title("Incidents by Month")
+            axes[0].set_ylabel("Number of incidents",
+color=self.colors["text"])
+            by_type.plot(kind="bar", ax=axes[1],
+color=self.colors["accent2"])
+            axes[1].set_title("Incidents by Category")
+            axes[1].set_ylabel("Number of incidents",
+color=self.colors["text"])
+            by_severity.plot(kind="bar", ax=axes[2],
+color=self.colors["danger"])
+            axes[2].set_title("Incidents by Severity")
+            axes[2].set_ylabel("Number of incidents",
+color=self.colors["text"])
+            fig.tight_layout()
+            canvas = FigureCanvasTkAgg(fig, master=popup)
+            canvas.draw()
+            canvas.get_tk_widget().pack(fill="both", expand=True,
+padx=10, pady=10)
+            ctk.CTkLabel(popup, text=f"Total incidents:
+{len(self.incidents_df)} | Open: {(self.incidents_df['Status'] ==
+'Open').sum()} | High/Critical:
+{self.incidents_df['Severity'].isin(['High', 'Critical']).sum()}",
+                          text_color=self.colors["accent"],
+font=("Arial", 13, "bold")).pack(pady=(0, 10))
+
+        refresh()
+        self.back_button()
+
