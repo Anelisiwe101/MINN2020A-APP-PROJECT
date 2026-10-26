@@ -716,4 +716,282 @@ padx=10, pady=10)
 
         refresh()
         self.back_button()
+ # EQUIPMENT DATABASE
+    def equipment_database(self):
+        self.clear()
+        self.header("Equipment Database",
+                     "Central equipment repository with operating
+condition parameters.")
+        frame = ctk.CTkFrame(self.root, fg_color=self.colors["panel"],
+corner_radius=12, border_width=1, border_color=self.colors["border"])
+        frame.pack(fill="both", expand=True, padx=20, pady=10)
+        display_df = self.equipment_df.copy()
+        display_df["Condition"] = display_df.apply(
+            lambda r: self.condition_status(r["Temperature"],
+r["Vibration"]), axis=1)
+        self.make_tree(frame, list(display_df.columns), display_df)
+        self.back_button()
 
+    def condition_status(self, temperature, vibration):
+        if temperature > 100 or vibration > 8:
+            return "CRITICAL"
+        if temperature >= 80 or vibration >= 5:
+            return "WARNING"
+        return "NORMAL"
+
+    # MAINTENANCE
+    def maintenance_monitoring(self):
+        self.clear()
+        self.header("Equipment Maintenance Monitoring",
+                     "Maintenance due/overdue status, downtime and
+availability.")
+        df = self.equipment_df.copy()
+
+        def maintenance_flag(row):
+            if str(row["MaintenanceStatus"]).lower() == "overdue":
+                return "OVERDUE"
+            if row["Availability"] < 80:
+                return "LOW AVAILABILITY"
+            if row["Downtime"] > 50:
+                return "EXCESSIVE DOWNTIME"
+            if row["MaintenanceStatus"].lower() == "due":
+                return "DUE"
+            return "OK"
+
+        df["Maintenance Alert"] = df.apply(maintenance_flag, axis=1)
+        frame = ctk.CTkFrame(self.root, fg_color=self.colors["panel"],
+corner_radius=12, border_width=1, border_color=self.colors["border"])
+       frame.pack(fill="both", expand=True, padx=20, pady=10)
+       self.make_tree(frame, list(df.columns), df)
+
+        due = len(df[df["Maintenance Alert"].isin(
+            ["OVERDUE", "DUE", "LOW AVAILABILITY", "EXCESSIVE
+DOWNTIME"])])
+        ctk.CTkLabel(self.root,
+                     text=f"{due} equipment units require maintenance
+attention.",
+                     text_color=self.colors["accent"],
+                     font=("Arial", 13, "bold")).pack(pady=5)
+        self.back_button()
+
+
+    # RISK ASSESSMENT
+    def risk_assessment(self):
+        self.clear()
+        self.header("Risk Assessment",
+                     "RiskScore = Likelihood × Consequence using the
+required 1–5 scale.")
+        form = ctk.CTkFrame(self.root, fg_color=self.colors["panel"],
+corner_radius=15, border_width=1, border_color=self.colors["border"])
+        form.pack(pady=30)
+
+        ctk.CTkLabel(form, text="Likelihood (1–5)",
+text_color=self.colors["text"]).grid(row=0, column=0, padx=20,
+pady=15)
+        likelihood = ctk.CTkComboBox(form, values=["1", "2", "3", "4",
+"5"], width=100, fg_color=self.colors["bg"],
+border_color=self.colors["border"])
+        likelihood.set("3")
+        likelihood.grid(row=0, column=1, padx=20)
+
+        ctk.CTkLabel(form, text="Consequence (1–5)",
+text_color=self.colors["text"]).grid(row=1, column=0, padx=20,
+pady=15)
+        consequence = ctk.CTkComboBox(form, values=["1", "2", "3",
+"4", "5"], width=100, fg_color=self.colors["bg"],
+border_color=self.colors["border"])
+        consequence.set("3")
+        consequence.grid(row=1, column=1, padx=20)
+
+        result = ctk.CTkLabel(form, text="Risk score: 9 |
+Classification: MEDIUM",
+                              font=("Arial", 20, "bold"),
+text_color=self.colors["accent"])
+        result.grid(row=3, column=0, columnspan=2, pady=20)
+
+       def calculate():
+           score = int(likelihood.get()) * int(consequence.get())
+            if score <= 4:
+                classification, color = "LOW", self.colors["success"]
+            elif score <= 9:
+                classification, color = "MEDIUM",
+self.colors["accent"]
+            elif score <= 16:
+                classification, color = "HIGH", "#E67E22"
+            else:
+                classification, color = "CRITICAL",
+self.colors["danger"]
+            result.configure(
+                text=f"Risk score: {score} | Classification:
+{classification}",
+                text_color=color)
+
+        ctk.CTkButton(form, text="Calculate Risk", command=calculate,
+width=250, height=40,
+                      fg_color=self.colors["accent"],
+hover_color=self.colors["accent_hover"]).grid(row=2, column=0,
+columnspan=2, pady=10)
+
+        self.back_button()
+
+    # ALERTS
+    def alerts(self):
+        self.clear()
+        self.header("Alerts & Notifications",
+                     "Automatically generated from predefined prototype
+conditions.")
+        alerts = []
+
+        for _, r in self.equipment_df.iterrows():
+            status = self.condition_status(r["Temperature"],
+r["Vibration"])
+            if status == "CRITICAL":
+                if r["Temperature"] > 100:
+                    alerts.append(("CRITICAL", r["EquipmentID"],
+                                   f"Temperature {r['Temperature']}°C
+exceeds critical threshold."))
+                if r["Vibration"] > 8:
+                    alerts.append(("CRITICAL", r["EquipmentID"],
+                                   f"Vibration {r['Vibration']} mm/s
+exceeds critical threshold."))
+            elif status == "WARNING":
+                alerts.append(("WARNING", r["EquipmentID"],
+                               f"Equipment approaching monitoring
+threshold "
+                               f"(Temp {r['Temperature']}°C, vibration
+{r['Vibration']} mm/s)."))
+        for _, r in self.workers_df.iterrows():
+            if r["PPECompliance"] < 80:
+                alerts.append(("WARNING", r["WorkerID"],
+                               f"PPE compliance is
+{r['PPECompliance']}%."))
+            if r["FatigueLevel"] >= 4:
+                alerts.append(("WARNING", r["WorkerID"],
+                               f"Fatigue level is
+{r['FatigueLevel']}/5."))
+
+         for _, r in self.incidents_df.iterrows():
+             if r["Severity"] in ["High", "Critical"] and r["Status"]
+== "Open":
+                 alerts.append(("CRITICAL", r["IncidentID"],
+                                f"{r['Severity']} incident remains
+open."))
+
+        scroll = ctk.CTkScrollableFrame(self.root,
+fg_color=self.colors["panel"], corner_radius=12, border_width=1,
+border_color=self.colors["border"])
+        scroll.pack(fill="both", expand=True, padx=20, pady=10)
+
+        if not alerts:
+            ctk.CTkLabel(scroll, text="No active alerts.",
+                         font=("Arial", 18, "bold"),
+
+text_color=self.colors["success"]).pack(pady=40)
+        else:
+            for level, identifier, text in alerts:
+                color = self.colors["danger"] if level == "CRITICAL"
+else self.colors["accent"]
+                card = ctk.CTkFrame(scroll,
+fg_color=self.colors["panel2"], corner_radius=8)
+                card.pack(fill="x", padx=10, pady=4)
+                ctk.CTkLabel(card, text=f"[{level}] {identifier}",
+                             font=("Arial", 13, "bold"),
+                             text_color=color).pack(anchor="w",
+padx=15, pady=(10, 2))
+                ctk.CTkLabel(card, text=text,
+                             font=("Arial", 11),
+text_color=self.colors["text"]).pack(anchor="w", padx=15, pady=(0,
+10))
+
+        self.back_button()
+
+    # ANALYTICS
+    def analytics(self):
+        self.clear()
+        self.header("Interactive Data Analysis",
+                     "Business questions from the project brief
+answered using the monitoring dataset.")
+        tabs = ctk.CTkTabview(self.root,
+fg_color=self.colors["panel"], border_width=1,
+border_color=self.colors["border"])
+        tabs.pack(fill="both", expand=True, padx=20, pady=10)
+        tabs.add("Safety Analysis")
+        tabs.add("Equipment Analysis")
+        tabs.add("Integrated Analysis")
+
+        safety_tab = tabs.tab("Safety Analysis")
+        fig1, ax1 = plt.subplots(figsize=(7.5, 4),
+facecolor=self.colors["panel"])
+        ax1.set_facecolor(self.colors["panel"])
+
+self.incidents_df["Department"].value_counts().plot(kind="bar",
+ax=ax1, color=self.colors["accent"])
+        ax1.set_title("Safety Incidents by Department",
+color=self.colors["text"])
+        ax1.set_ylabel("Number of incidents",
+color=self.colors["text"])
+        ax1.tick_params(axis="x", rotation=30,
+colors=self.colors["text"])
+        ax1.tick_params(axis="y", colors=self.colors["text"])
+        fig1.tight_layout()
+        canvas1 = FigureCanvasTkAgg(fig1, master=safety_tab)
+        canvas1.draw()
+        canvas1.get_tk_widget().pack(fill="both", expand=True)
+
+        equipment_tab = tabs.tab("Equipment Analysis")
+        fig2, ax2 = plt.subplots(figsize=(7.5, 4),
+facecolor=self.colors["panel"])
+        ax2.set_facecolor(self.colors["panel"])
+        self.equipment_df.plot(x="EquipmentID", y="Availability",
+kind="bar", ax=ax2, legend=False, color=self.colors["accent2"])
+        ax2.set_title("Equipment Availability",
+color=self.colors["text"])
+        ax2.set_ylabel("Availability (%)", color=self.colors["text"])
+        ax2.tick_params(axis="x", rotation=30,
+colors=self.colors["text"])
+        ax2.tick_params(axis="y", colors=self.colors["text"])
+        fig2.tight_layout()
+        canvas2 = FigureCanvasTkAgg(fig2, master=equipment_tab)
+        canvas2.draw()
+        canvas2.get_tk_widget().pack(fill="both", expand=True)
+
+        integrated = tabs.tab("Integrated Analysis")
+        fig3, ax3 = plt.subplots(figsize=(7.5, 4),
+facecolor=self.colors["panel"])
+        ax3.set_facecolor(self.colors["panel"])
+        ax3.scatter(self.equipment_df["Downtime"],
+self.equipment_df["Availability"], color=self.colors["accent"])
+        ax3.set_title("Downtime vs Equipment Availability",
+color=self.colors["text"])
+        ax3.set_xlabel("Downtime", color=self.colors["text"])
+        ax3.set_ylabel("Availability (%)", color=self.colors["text"])
+        ax3.tick_params(axis="x", colors=self.colors["text"])
+        ax3.tick_params(axis="y", colors=self.colors["text"])
+        fig3.tight_layout()
+        canvas3 = FigureCanvasTkAgg(fig3, master=integrated)
+        canvas3.draw()
+        canvas3.get_tk_widget().pack(fill="both", expand=True)
+
+        answers = ctk.CTkFrame(self.root,
+fg_color=self.colors["panel2"], corner_radius=10)
+        answers.pack(fill="x", padx=20, pady=5)
+
+        highest_department =
+self.incidents_df["Department"].value_counts().idxmax()
+        highest_equipment = self.equipment_df.loc[
+            self.equipment_df["Downtime"].idxmax(), "EquipmentID"]
+        lowest_availability = self.equipment_df.loc[
+            self.equipment_df["Availability"].idxmin(), "EquipmentID"]
+
+        text = (
+            f"• Department with most incidents: {highest_department}
+|   "
+            f"• Equipment with highest downtime: {highest_equipment}
+|   "
+            f"• Equipment with lowest availability:
+{lowest_availability}"
+        )
+        ctk.CTkLabel(answers, text=text, justify="left",
+                     font=("Arial", 11),
+text_color=self.colors["text"]).pack(anchor="w", padx=15, pady=10)
+        self.back_button()
